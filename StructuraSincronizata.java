@@ -5,7 +5,7 @@
 // PCDrop 
 // Producerul pune mesaje (predefinite) in acest Drop 
 // Consumerul le consuma. 
-public class Main
+public class StructuraSincronizata
 {
 	public static void main(String[] args) {
 		System.out.println("Hello World");

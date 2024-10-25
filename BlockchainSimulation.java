@@ -7,7 +7,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class Main {
+public class BlockchainSimulation {
     public static void main(String[] args) {
         BlockingQueue<Transaction> transactionPool = new LinkedBlockingQueue<>();
         Blockchain blockchain = new Blockchain();

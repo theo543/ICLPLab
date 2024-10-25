@@ -1,7 +1,7 @@
 // Exemplu de implementare pentru Publisher - Subscriber
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class Main {
+public class PublisherSubscriber {
     public static void main(String[] args) {
         MessagePublisher publisher = new MessagePublisher();
 
