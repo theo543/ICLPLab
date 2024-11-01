@@ -1,7 +1,7 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
@@ -9,7 +9,7 @@ import java.util.concurrent.FutureTask;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Crawler {
+public class FutureTaskAndCallableCrawler {
 	public static void main(String args[]) {
 		List<String> urls = List.of(
 			"https://google.com",
@@ -33,8 +33,7 @@ public class Crawler {
 			try {
 				String content = futureTask.get();
 				System.out.println("Page content:\n" + content);
-			}
-			catch (Exception ex) {
+			} catch (Exception ex) {
 				ex.printStackTrace();
 			}
 		}
@@ -48,14 +47,14 @@ class CrawlerTask implements Callable<String> {
 		this.url = url;
 	}
 
-	@Override 
+	@Override
 	public String call() {
 		StringBuilder content = new StringBuilder();
 
 		try {
 			System.out.println("Accessing: " + url);
-			
-			HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+
+			HttpURLConnection connection = (HttpURLConnection) new URI(url).toURL().openConnection();
 			connection.setRequestMethod("GET");
 			connection.setConnectTimeout(5000);
 			connection.setReadTimeout(5000);
@@ -68,14 +67,12 @@ class CrawlerTask implements Callable<String> {
 					content.append(line).append("\n");
 				}
 				reader.close();
-			}
-			else {
+			} else {
 				content.append("Cannot acces this page: ").append(status);
 			}
 
 			connection.disconnect();
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 			ex.printStackTrace();
 			return "Error: " + url;
 		}
