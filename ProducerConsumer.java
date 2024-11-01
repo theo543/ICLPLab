@@ -27,7 +27,7 @@ class Producer implements Runnable
         Random random = new Random();
 
         for (int i = 0; i < messages.length; i++) {
-            System.out.println(Thread.currentThread().getId() + " produced " + messages[i]);
+            System.out.println(Thread.currentThread().threadId() + " produced " + messages[i]);
             drop.put(messages[i]);
             try {
                 Thread.sleep(random.nextInt(5000));
@@ -54,7 +54,7 @@ class Consumer implements Runnable
     public void run() {
         Random random = new Random();
         for (String message = drop.take(); !message.equals("DONE"); message = drop.take()) {
-            System.out.println(Thread.currentThread().getId() + " received " + message);
+            System.out.println(Thread.currentThread().threadId() + " received " + message);
             try {
                 Thread.sleep(random.nextInt(5000));
             }
