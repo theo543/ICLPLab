@@ -1,36 +1,60 @@
 import Control.Concurrent (MVar, newMVar, takeMVar, putMVar, newEmptyMVar, tryPutMVar)
-import Control.Monad.Fix (fix)
+import Data.List (partition)
+import Control.Monad (foldM)
 
-data RWLock = RWLock (MVar (Int, [MVar ()]))
+data PendingType = Reader | Writer deriving Eq
+data RWLockState = Free | Reading { count :: Int, pendingWriters :: [MVar ()] } | Writing  { pending :: [(PendingType, MVar ())] }
+newtype RWLock = RWLock { monitor :: MVar RWLockState }
 
 newRWLock :: IO RWLock
-newRWLock = fmap RWLock $ newMVar (0, [])
+newRWLock = fmap RWLock $ newMVar Free
 
 acquireRead :: RWLock -> IO ()
-acquireRead (RWLock monitorMVar) = do
-    (readers, pending) <- takeMVar monitorMVar
-    putMVar monitorMVar (readers + 1, pending)
+acquireRead (RWLock lock) = do
+    state <- takeMVar lock
+    case state of
+        Free -> putMVar lock $ Reading 1 []
+        Reading count pending -> putMVar lock $ Reading (count + 1) pending
+        Writing pending -> do
+            waitSignal <- newEmptyMVar
+            putMVar lock $ Writing $ pending ++ [(Reader, waitSignal)]
+            takeMVar waitSignal
 
 releaseRead :: RWLock -> IO ()
-releaseRead (RWLock monitorMVar) = do
-    (readers, pending) <- takeMVar monitorMVar
-    if readers == 1 then
-        mapM_ (`putMVar` ()) pending
-    else return ()
-    putMVar monitorMVar (0, pending)
+releaseRead (RWLock lock) = do
+    state <- takeMVar lock
+    case state of
+        Reading 1 [] -> putMVar lock Free
+        Reading 1 (writer : remaining) -> do
+            putMVar writer ()
+            putMVar lock $ Writing $ map (Writer,) remaining
+        Reading count pending -> putMVar lock $ Reading (count - 1) pending
+        _ -> error "Bug! Attempted to releaseRead lock not in Reading state."
 
 acquireWrite :: RWLock -> IO ()
-acquireWrite (RWLock monitorMVar) = fix $ \loop -> do
-    (readers, pending) <- takeMVar monitorMVar
-    if readers /= 0 then do
-        waitSignal <- newEmptyMVar
-        putMVar monitorMVar (readers, waitSignal : pending)
-        takeMVar waitSignal
-        loop
-    else
-        if pending /= [] then error "Bug!" else return ()
+acquireWrite (RWLock lock) = do
+    state <- takeMVar lock
+    case state of
+        Free -> putMVar lock $ Writing []
+        Reading count pendingWriters -> do
+            waitSignal <- newEmptyMVar
+            putMVar lock $ Reading count $ pendingWriters ++ [waitSignal]
+            takeMVar waitSignal
+        Writing pending -> do
+            waitSignal <- newEmptyMVar
+            putMVar lock $ Writing $ pending ++ [(Writer, waitSignal)]
+            takeMVar waitSignal
 
 releaseWrite :: RWLock -> IO ()
-releaseWrite (RWLock monitorMVar) = do
-    success <- tryPutMVar monitorMVar (0, [])
-    if success then return () else error "Bug!"
+releaseWrite (RWLock lock) = do
+    state <- takeMVar lock
+    case state of
+        Writing [] -> putMVar lock Free
+        Writing ((Writer, writer) : remaining) -> do
+            putMVar lock $ Writing remaining
+            putMVar writer ()
+        Writing ((Reader, reader) : remaining) -> do
+            let (readers, writers) = partition ((== Reader) . fst) remaining
+            wokenReaderCount <- foldM (\count reader -> putMVar reader () >> return (count + 1)) 0 (reader : map snd readers)
+            putMVar lock $ Reading wokenReaderCount []
+        _ -> error "Bug! Attempted to releaseWrite lock not in Writing state."
