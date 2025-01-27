@@ -1,3 +1,6 @@
+-module(main).
+-export([main/1]).
+
 % modelam un cont bancar care are doua stari (active, closed)
 % vrem sa implementam operatii: withdraw, deposit, check_balance, close_account
 
